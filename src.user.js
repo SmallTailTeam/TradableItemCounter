@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tradable item counter
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Count tradable assets from inventory and market
 // @author       SmallTailTeam
 // @match        https://steamcommunity.com/market/
