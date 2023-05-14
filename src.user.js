@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tradable item counter
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Count tradable assets from inventory and market
 // @author       SmallTailTeam
 // @match        https://steamcommunity.com/market/
@@ -93,15 +93,7 @@ async function loadMarketListings(assets) {
 
         if (json.assets[appId] !== undefined) {
             Object.values(json.assets[appId][contextId]).forEach(asset => {
-                let tradableAfter = null;
-
-                if (asset.owner_descriptions !== undefined) {
-                    tradableAfter = asset.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'))?.value;
-                }
-
-                if (!tradableAfter) {
-                    tradableAfter = 'Можно будет передать другим сейчас';
-                }
+                let tradableAfter = parseTradability(asset);
 
                 assets.push({
                     name: asset.name,
@@ -128,21 +120,31 @@ async function loadInventory(assets) {
     json.assets.forEach(asset => {
         let description = json.descriptions.find(d => d.classid === asset.classid);
 
-        let tradableAfter = null;
-
-        if (description.owner_descriptions) {
-            tradableAfter = description.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'))?.value;
-        }
-
-        if (!tradableAfter) {
-            tradableAfter = 'Можно будет передать другим сейчас';
-        }
+        let tradableAfter = parseTradability(description);
 
         assets.push({
             name: description.name,
             tradableAfter
         })
     });
+}
+
+function parseTradability(asset) {
+    let tradableAfter = null;
+
+    if (asset.owner_descriptions) {
+        tradableAfter = asset.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'))?.value;
+    }
+
+    if (!tradableAfter) {
+        if(asset.tradable == 1) {
+            tradableAfter = 'Можно будет передать другим сейчас';
+        } else {
+            tradableAfter = 'Нетрейдабильный';
+        }
+    }
+
+    return tradableAfter;
 }
 
 function display(assets) {
