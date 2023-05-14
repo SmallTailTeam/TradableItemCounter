@@ -9,3 +9,5 @@
 Может быть полезно тем, кто продает предметы на сторонних площадках, таких как кс.маркет, бафф и т.д..
 
 [Установить](https://github.com/SmallTailTeam/tradable-item-counter/raw/main/src.user.js)
+
+![Скриншот работы софта](Assets/Screenshot.png)
