@@ -62,12 +62,20 @@ async function loadMarketListings(assets) {
 
         if (json.assets[appId] !== undefined) {
             Object.values(json.assets[appId][contextId]).forEach(asset => {
+                let tradableAfter = null;
+
                 if (asset.owner_descriptions !== undefined) {
-                    assets.push({
-                        name: asset.name,
-                        tradableAfter: asset.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после')).value
-                    })
+                    tradableAfter = asset.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'))?.value;
                 }
+
+                if (!tradableAfter) {
+                    tradableAfter = 'Можно будет передать другим сейчас';
+                }
+
+                assets.push({
+                    name: asset.name,
+                    tradableAfter
+                });
             });
         }
 
@@ -87,16 +95,20 @@ async function loadInventory(assets) {
     json.assets.forEach(asset => {
         let description = json.descriptions.find(d => d.classid === asset.classid);
 
-        if (description.owner_descriptions) {
-            let tradableAfter = description.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'));
+        let tradableAfter = null;
 
-            if (tradableAfter) {
-                assets.push({
-                    name: description.name,
-                    tradableAfter: tradableAfter.value
-                })
-            }
+        if (description.owner_descriptions) {
+            tradableAfter = description.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'))?.value;
         }
+
+        if (!tradableAfter) {
+            tradableAfter = 'Можно будет передать другим сейчас';
+        }
+
+        assets.push({
+            name: description.name,
+            tradableAfter
+        })
     });
 }
 
@@ -122,7 +134,7 @@ function display(assets) {
 
     bg.insertBefore(container, bg.firstChild);
 
-    Object.keys(grouped).forEach(key => {
+    Object.keys(grouped).sort().forEach(key => {
         var label = document.createElement('div');
 
         label.innerHTML = `${key} -> ${grouped[key].length}`;
