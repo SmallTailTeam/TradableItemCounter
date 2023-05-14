@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tradable item counter
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Count tradable assets from inventory and market
 // @author       SmallTailTeam
 // @match        https://steamcommunity.com/market/
@@ -13,6 +13,7 @@
 const appId = 730;
 const contextId = 2;
 let button;
+let infobox;
 
 (async function() {
     'use strict';
@@ -43,12 +44,42 @@ async function load() {
 
     button.disabled = true;
 
+    ensureInfoBox();
+
     await loadMarketListings(assets);
     await loadInventory(assets);
 
-    button.disabled = false;
+    addInfoLabel('Готово!');
 
-    display(assets);
+    setTimeout(() => {
+        ensureInfoBox();
+
+        button.disabled = false;
+
+        display(assets);
+    }, 1500)
+}
+
+function ensureInfoBox() {
+    if (!infobox) {
+         var bg = document.querySelector('#BG_bottom');
+
+        infobox = document.createElement('div');
+        infobox.style.background = '#101822';
+        infobox.style.padding = '6px';
+        infobox.style.marginTop = '30px';
+
+        bg.insertBefore(infobox, bg.firstChild);
+    } else {
+        infobox.innerHTML = '';
+    }
+}
+
+function addInfoLabel(text) {
+    var label = document.createElement('div');
+    label.innerHTML = text;
+
+    infobox.appendChild(label);
 }
 
 async function loadMarketListings(assets) {
@@ -80,6 +111,7 @@ async function loadMarketListings(assets) {
         }
 
         console.log(`Загружаю торговую -> ${start}/${json.total_count}`)
+        addInfoLabel(`Загружаю торговую -> ${start}/${json.total_count}`);
 
         start += count;
         total = json.total_count;
@@ -91,6 +123,7 @@ async function loadInventory(assets) {
     let json = await response.json();
 
     console.log(`Загружаю инвентарь -> ${json.assets.length}/${json.total_inventory_count}`);
+    addInfoLabel(`Загружаю инвентарь -> ${json.assets.length}/${json.total_inventory_count}`);
 
     json.assets.forEach(asset => {
         let description = json.descriptions.find(d => d.classid === asset.classid);
@@ -125,20 +158,7 @@ function display(assets) {
         grouped[key].push(a);
     });
 
-    var bg = document.querySelector('#BG_bottom');
-
-    let container = document.createElement('div');
-    container.style.background = '#101822';
-    container.style.padding = '6px';
-    container.style.marginTop = '30px';
-
-    bg.insertBefore(container, bg.firstChild);
-
     Object.keys(grouped).sort().forEach(key => {
-        var label = document.createElement('div');
-
-        label.innerHTML = `${key} -> ${grouped[key].length}`;
-
-        container.appendChild(label);
+        addInfoLabel(`${key} -> ${grouped[key].length}`);
     })
 }
