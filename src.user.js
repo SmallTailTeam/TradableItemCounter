@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tradable item counter
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.6
 // @description  Count tradable assets from inventory and market
 // @author       SmallTailTeam
 // @match        https://steamcommunity.com/market/
@@ -12,11 +12,19 @@
 
 const appId = 730;
 const contextId = 2;
+
+const marketLoadingDelayMs = 1000;
+
 let button;
 let infobox;
 
+let yesterday;
+
 (async function() {
     'use strict';
+
+    yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
 
     var container = document.querySelector('#myMarketTabs');
 
@@ -47,7 +55,14 @@ async function load() {
     ensureInfoBox();
 
     await loadMarketListings(assets);
+    let countMarket = assets.length;
+
+    addSpace();
+
     await loadInventory(assets);
+    let countInventory = assets.length - countMarket;
+
+    addSpace();
 
     addInfoLabel('Готово!');
 
@@ -55,6 +70,16 @@ async function load() {
         ensureInfoBox();
 
         button.disabled = false;
+
+        addInfoHeader('Статистика');
+
+        addInfoLabel(`На торговой: ${countMarket}`);
+        addInfoLabel(`В инвентаре: ${countInventory}`);
+        addInfoLabel(`Всего: ${assets.length}`);
+
+        addSpace();
+
+        addInfoHeader('Трейдабильность');
 
         display(assets);
     }, 1500)
@@ -82,6 +107,18 @@ function addInfoLabel(text) {
     infobox.appendChild(label);
 }
 
+function addInfoHeader(text) {
+    var label = document.createElement('h2');
+    label.innerHTML = text;
+
+    infobox.appendChild(label);
+}
+
+function addSpace() {
+    var label = document.createElement('br');
+    infobox.appendChild(label);
+}
+
 async function loadMarketListings(assets) {
     let start = 0;
     let total = 0;
@@ -97,16 +134,19 @@ async function loadMarketListings(assets) {
 
                 assets.push({
                     name: asset.name,
-                    tradableAfter
+                    text: tradableAfter.text,
+                    date: tradableAfter.date
                 });
             });
         }
 
-        console.log(`Загружаю торговую -> ${start}/${json.total_count}`)
-        addInfoLabel(`Загружаю торговую -> ${start}/${json.total_count}`);
+        console.log(`Загружаю торговую... ${start}/${json.total_count}`)
+        addInfoLabel(`Загружаю торговую... ${start}/${json.total_count}`);
 
         start += count;
         total = json.total_count;
+
+        await delay(marketLoadingDelayMs);
     } while (start < total);
 }
 
@@ -114,8 +154,8 @@ async function loadInventory(assets) {
     let response = await fetch(`https://steamcommunity.com/inventory/${g_steamID}/${appId}/${contextId}?l=russian&count=2000`);
     let json = await response.json();
 
-    console.log(`Загружаю инвентарь -> ${json.assets.length}/${json.total_inventory_count}`);
-    addInfoLabel(`Загружаю инвентарь -> ${json.assets.length}/${json.total_inventory_count}`);
+    console.log(`Загружаю инвентарь... ${json.assets.length}/${json.total_inventory_count}`);
+    addInfoLabel(`Загружаю инвентарь... ${json.assets.length}/${json.total_inventory_count}`);
 
     json.assets.forEach(asset => {
         let description = json.descriptions.find(d => d.classid === asset.classid);
@@ -124,34 +164,59 @@ async function loadInventory(assets) {
 
         assets.push({
             name: description.name,
-            tradableAfter
+            text: tradableAfter.text,
+            date: tradableAfter.date
         })
     });
 }
 
+async function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function parseTradability(asset) {
-    let tradableAfter = null;
+    let text = "";
+    let date = undefined;
 
     if (asset.owner_descriptions) {
-        tradableAfter = asset.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'))?.value;
+        text = asset.owner_descriptions.find(x => x.value.includes('Можно будет передать другим после'))?.value;
     }
 
-    if (!tradableAfter) {
+    if (text) {
+        const match = text.match(/(\d{2} .{3} \d{4})/);
+        date = parseRussianDate(match[1]);
+    }
+
+    if (!text) {
         if(asset.tradable == 1) {
-            tradableAfter = 'Можно будет передать другим сейчас';
+            text = 'Можно будет передать другим сейчас';
+            date = yesterday;
         } else {
-            tradableAfter = 'Нетрейдабильный';
+            text = 'Нетрейдабильный';
         }
     }
 
-    return tradableAfter;
+    return {text, date};
+}
+
+const russianMonths = [
+    "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"
+];
+
+function parseRussianDate(dateString) {
+    const parts = dateString.split(' ');
+    const day = parseInt(parts[0], 10);
+    const month = russianMonths.indexOf(parts[1]);
+    const year = parseInt(parts[2], 10);
+
+    return new Date(year, month, day);
 }
 
 function display(assets) {
     var grouped = {};
 
     assets.forEach(a => {
-        var key = a.tradableAfter;
+        var key = a.date;
 
         if (!grouped[key]) {
             grouped[key] = [];
@@ -160,7 +225,11 @@ function display(assets) {
         grouped[key].push(a);
     });
 
-    Object.keys(grouped).sort().forEach(key => {
-        addInfoLabel(`${key} -> ${grouped[key].length}`);
+    let list = Object.keys(grouped);
+
+    list.sort((a, b) => new Date(a) - new Date(b));
+
+    list.forEach(key => {
+        addInfoLabel(`${grouped[key][0].text}: ${grouped[key].length}`);
     })
 }
