@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tradable item counter
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Count tradable assets from inventory and market
 // @author       SmallTailTeam
 // @match        https://steamcommunity.com/market/
@@ -18,12 +18,13 @@ const marketLoadingDelayMs = 1000;
 let button;
 let infobox;
 
-let startDate;
+let yesterday;
 
 (async function() {
     'use strict';
 
-    startDate = new Date();
+    yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
 
     var container = document.querySelector('#myMarketTabs');
 
@@ -189,7 +190,7 @@ function parseTradability(asset) {
     if (!text) {
         if(asset.tradable == 1) {
             text = 'Можно будет передать другим сейчас';
-            date = startDate;
+            date = yesterday;
         } else {
             text = 'Нетрейдабильный';
         }
